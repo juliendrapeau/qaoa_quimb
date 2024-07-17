@@ -1,6 +1,7 @@
 autoray @ git+https://github.com/jcmgray/autoray.git@0b0d26336bf3c49574e5a4897a331e2eb23ef02d
 contourpy==1.2.1
 cotengra @ git+https://github.com/jcmgray/cotengra.git@183aff02869211756839eaab5d8a088b914f8ced
+cotengrust==0.1.2
 cycler==0.12.1
 cytoolz==0.12.3
 fonttools==4.51.0
