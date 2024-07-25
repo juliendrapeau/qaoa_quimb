@@ -3,8 +3,10 @@ Launcher for QAOA. Main class for the simulation of QAOA circuits.
 """
 
 import time
+from collections import Counter
 
 import quimb.tensor as qtn
+from quimb import simulate_counts
 
 from .circuit import create_qaoa_circ
 from .contraction import compute_energy, minimize_energy
@@ -252,7 +254,7 @@ class QAOALauncher:
 
     def sample_qaoa(self, shots, ansatz=None, opt=None, mps=True, **ansatz_opts):
         """
-        Sample the qaoa.
+        Sample the qaoa shot by shot.
 
         Parameters:
         -----------
@@ -286,9 +288,54 @@ class QAOALauncher:
         counts = ansatz.sample(
             shots, optimize=opt, backend=self.backend, max_marginal_storage=2**28
         )
-        # counts = Counter(
-        #     ansatz.simulate_counts(shots, optimize=opt, backend=self.backend)
-        # )
+        end_sampling = time.time()
+
+        self.compute_time["sampling"] = end_sampling - start_sampling
+        self.counts = counts
+
+        return counts
+
+    def simulate_counts_qaoa(
+        self, shots, ansatz=None, p_dense=None, opt=None, mps=True, **ansatz_opts
+    ):
+        """
+        Simulate the counts for the qaoa using the dense representation of the wavefunction.
+
+        Parameters:
+        -----------
+        shots: int
+            Number of samples to take.
+        ansatz: qtn.Circuit, optional
+            QAOA ansatz to sample. Used to keep the marginals found. If None, the QAOA ansatz is instantiated from the optimal parameters.
+        p_dense: qtn.TensorNetwork, optional
+            Full wavefunction to simulate. If None, the wavefunction is generated from the circuit.
+        opt: str, optional
+            Contraction path optimizer. Default is Quimb's default optimizer.
+        mps: bool, optional
+            If True, initialize the QAOA circuit as a Matrix Product State (MPS) instead of as a general tensor networks.
+
+        Returns:
+        --------
+        counts: Counter
+            Counter of the samples
+        """
+
+        if ansatz is None:
+            if self.theta_opt is not None:
+                ansatz = self.instantiate_qaoa(self.theta_opt, mps, **ansatz_opts)
+            elif self.theta_ini is not None:
+                ansatz = self.instantiate_qaoa(self.theta_ini, mps, **ansatz_opts)
+            else:
+                raise ValueError(
+                    "Please initialize or initialize and run QAOA before sampling."
+                )
+
+        if p_dense is None:
+            p_dense = ansatz.to_dense(optimize=opt, backend=self.backend)
+
+        # sample the QAOA circuit
+        start_sampling = time.time()
+        counts = Counter(simulate_counts(p_dense, shots))
         end_sampling = time.time()
 
         self.compute_time["sampling"] = end_sampling - start_sampling
